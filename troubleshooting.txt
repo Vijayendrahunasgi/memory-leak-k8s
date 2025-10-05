@@ -1,0 +1,58 @@
+1) Detect OOMKilled and node pressure
+Recent OOM/kill events:
+
+kubectl get events --field-selector reason=Killing,type=Warning | grep -i -E "oom|killed"
+
+Per-pod restart cause:
+
+kubectl describe pod <pod> | sed -n '/Containers:/,/Conditions:/p'
+
+Node memory pressure:
+
+kubectl describe nodes | sed -n '/Conditions:/,/Addresses:/p' | grep -i -A1 MemoryPressure
+
+2) Live usage vs limits and QoS
+Top by memory:
+
+kubectl top pod --sort-by=memory
+
+Show requests/limits for the pod:
+
+kubectl get pod <pod> -o custom-columns="POD:.metadata.name,REQ:.spec.containers[].resources.requests.memory,LIM:.spec.containers[].resources.limits.memory"
+
+QoS class (impacts eviction priority):
+
+kubectl get pod <pod> -o jsonpath='{.status.qosClass}'; echo
+
+Inside container cgroups:
+
+kubectl exec <pod> -- cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+
+kubectl exec <pod> -- cat /sys/fs/cgroup/memory/memory.usage_in_bytes
+
+3) Immediate mitigations
+Scale out replicas to spread load:
+
+kubectl scale deploy/memory-leak --replicas=4
+
+Temporarily raise memory limit/requests:
+
+kubectl set resources deploy/memory-leak --limits=memory=512Mi --requests=memory=256Mi
+
+Restart to clear leaked memory:
+
+kubectl rollout restart deploy/memory-leak
+
+4) Verify HPA presence and health
+List HPAs:
+
+kubectl get hpa
+
+Describe specific HPA:
+
+kubectl describe hpa memory-leak-hpa
+
+YAML status (desired vs current replicas, conditions):
+
+kubectl get hpa memory-leak-hpa -o yaml | sed -n '/status:/,$p'
+

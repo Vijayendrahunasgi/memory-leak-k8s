@@ -1,0 +1,35 @@
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-leak
+  #namespace: resource-lab
+  labels:
+    app: memory-leak
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: memory-leak
+  template:
+    metadata:
+      labels:
+        app: memory-leak
+      annotations:           # Option A: if using annotation scraping
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: memory-leak
+        image: vijaypranesh/memleak:latest
+        ports:
+        - name: metrics
+          containerPort: 8000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
